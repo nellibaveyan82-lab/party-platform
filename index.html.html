@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Կուսակցական Match-Making հարթակ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app"></div>
+
+    <script>
+        // Application state
+        let currentView = 'dashboard';
+        let applications = [];
+        
+        const user = {
+            name: 'Արամ Ավագյան',
+            profession: 'ՏՏ մասնագետ',
+            experience: 5,
+            skills: ['JavaScript', 'Կազմակերպչական', 'Հանրային ելույթներ'],
+            availability: 'Մասամբ',
+            regions: ['Երևան', 'Առցանց'],
+            partyYears: 3,
+            testResults: {
+                technical: 85,
+                leadership: 78,
+                communication: 92,
+                loyalty: 96,
+                personality: 'ENTJ',
+                completed: 4,
+                total: 5
+            }
+        };
+
+        const positions = [
+            {
+                id: 1,
+                title: 'Տարածքային գրասենյակի գործավար',
+                description: 'Գյումրիի տարածքային գրասենյակի կառավարում և համակարգում',
+                requirements: ['Կազմակերպչական', 'Ղեկավարական', 'Հանրային ելույթներ'],
+                requiredTests: ['leadership', 'communication', 'loyalty'],
+                duration: 'Մշտական',
+                location: 'Գյումրի',
+                type: 'position',
+                matchScore: 75,
+                testMatch: 88
+            },
+            {
+                id: 2,
+                title: 'ՏՏ համակարգիչ',
+                description: 'Կուսակցության վեբ կայքի և բջջային հավելվածի զարգացում',
+                requirements: ['JavaScript', 'React', 'Node.js'],
+                requiredTests: ['technical', 'communication'],
+                duration: 'Մշտական',
+                location: 'Երևան',
+                type: 'position',
+                matchScore: 95,
+                testMatch: 89
+            },
+            {
+                id: 3,
+                title: 'Ընտրական շտաբի համակարգող',
+                description: 'Քարոզչական նյութերի բաշխում և ընտրողների հետ աշխատանք',
+                requirements: ['Հանրային ելույթներ', 'Կազմակերպչական'],
+                requiredTests: ['communication', 'loyalty', 'leadership'],
+                duration: '3 ամիս',
+                location: 'Երևան',
+                type: 'project',
+                matchScore: 85,
+                testMatch: 92
+            },
+            {
+                id: 4,
+                title: 'Սոց. մեդիա թիմի անդամ',
+                description: 'Facebook և Instagram էջերի կառավարում',
+                requirements: ['Մարկետինգ', 'Դիզայն', 'Սոց. մեդիա'],
+                requiredTests: ['communication', 'technical'],
+                duration: '6 ամիս',
+                location: 'Առցանց',
+                type: 'project',
+                matchScore: 40,
+                testMatch: 75
+            }
+        ];
+
+        const tests = [
+            {
+                id: 1,
+                name: 'Տեխնիկական հմտություններ',
+                type: 'technical',
+                duration: '45 րոպե',
+                questions: 25,
+                completed: true,
+                score: 85,
+                description: 'JavaScript, React, տվյալների բազաներ'
+            },
+            {
+                id: 2,
+                name: 'Ղեկավարական հմտություններ',
+                type: 'leadership',
+                duration: '30 րոպե',
+                questions: 20,
+                completed: true,
+                score: 78,
+                description: 'Թիմային աշխատանք, որոշումների կայացում'
+            },
+            {
+                id: 3,
+                name: 'Հաղորդակցական հմտություններ',
+                type: 'communication',
+                duration: '25 րոպե',
+                questions: 15,
+                completed: true,
+                score: 92,
+                description: 'Հանրային ելույթներ, բանակցություններ'
+            },
+            {
+                id: 4,
+                name: 'Արժեքներ և նվիրվածություն',
+                type: 'loyalty',
+                duration: '20 րոպե',
+                questions: 18,
+                completed: true,
+                score: 96,
+                description: 'Կուսակցական արժեքներ, նպատակներ'
+            },
+            {
+                id: 5,
+                name: 'Անձնականության թեստ (MBTI)',
+                type: 'personality',
+                duration: '35 րոպե',
+                questions: 60,
+                completed: false,
+                score: null,
+                description: 'Վարքային ոճ, թիմային դեր'
+            }
+        ];
+
+        const notifications = [
+            'Նոր թափուր պաշտոն՝ ՏՏ համակարգիչ (95% համապատասխանություն)',
+            'Ավարտեք MBTI թեստը՝ ավելի լավ առաջարկների համար',
+            'Ընտրական շտաբը փնտրում է կամավորներ'
+        ];
+
+        // Helper functions
+        function getTestColor(score) {
+            if (score >= 90) return 'text-green-600 bg-green-100';
+            if (score >= 80) return 'text-blue-600 bg-blue-100';
+            if (score >= 70) return 'text-yellow-600 bg-yellow-100';
+            return 'text-red-600 bg-red-100';
+        }
+
+        function getMatchedPositions() {
+            return positions
+                .filter(pos => pos.matchScore >= 70)
+                .sort((a, b) => b.testMatch - a.testMatch);
+        }
+
+        function handleApply(positionId) {
+            if (!applications.includes(positionId)) {
+                applications.push(positionId);
+                alert('Դիմումը հաջողությամբ ուղարկվեց');
+                render();
+            }
+        }
+
+        function setView(view) {
+            currentView = view;
+            render();
+        }
+
+        // Components
+        function Dashboard() {
+            return `
+                <div class="space-y-6">
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                        <div class="flex items-center mb-2">
+                            <span class="text-xl mr-2">🔔</span>
+                            <h3 class="text-lg font-semibold text-blue-800">Ծանուցումներ</h3>
+                        </div>
+                        <div class="space-y-1">
+                            ${notifications.map(notif => `<p class="text-blue-700 text-sm">• ${notif}</p>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg border border-purple-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🧠</span>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">Թեստավորման վիճակ</h3>
+                                    <p class="text-sm text-gray-600">Ավարտված ${user.testResults.completed}/${user.testResults.total}</p>
+                                </div>
+                            </div>
+                            <button onclick="setView('tests')" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                                Շարունակել թեստերը
+                            </button>
+                        </div>
+                        
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+                            <div class="bg-purple-600 h-2 rounded-full transition-all duration-300" style="width: ${(user.testResults.completed / user.testResults.total) * 100}%"></div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-600">${user.testResults.technical}%</div>
+                                <div class="text-xs text-gray-600">Տեխնիկական</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-600">${user.testResults.leadership}%</div>
+                                <div class="text-xs text-gray-600">Ղեկավարական</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-600">${user.testResults.communication}%</div>
+                                <div class="text-xs text-gray-600">Հաղորդակցական</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-orange-600">${user.testResults.loyalty}%</div>
+                                <div class="text-xs text-gray-600">Նվիրվածություն</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div onclick="setView('positions')" class="bg-white p-6 rounded-lg shadow-md border hover:shadow-lg transition-shadow cursor-pointer">
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="text-2xl">💼</span>
+                                <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    ${positions.filter(p => p.type === 'position').length}
+                                </span>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Թափուր պաշտոններ</h3>
+                            <p class="text-gray-600 text-sm">Կուսակցության և պետական կառույցներում առկա պաշտոններ</p>
+                        </div>
+
+                        <div onclick="setView('projects')" class="bg-white p-6 rounded-lg shadow-md border hover:shadow-lg transition-shadow cursor-pointer">
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="text-2xl">👥</span>
+                                <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    ${positions.filter(p => p.type === 'project').length}
+                                </span>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Նախագծեր</h3>
+                            <p class="text-gray-600 text-sm">Կարճաժամկետ նախաձեռնություններ և շտաբներ</p>
+                        </div>
+
+                        <div onclick="setView('recommendations')" class="bg-white p-6 rounded-lg shadow-md border hover:shadow-lg transition-shadow cursor-pointer">
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="text-2xl">⭐</span>
+                                <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    ${getMatchedPositions().length}
+                                </span>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Իմ առաջարկները</h3>
+                            <p class="text-gray-600 text-sm">Ձեր պրոֆիլին համապատասխանող հնարավորություններ</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Վերջին ակտիվություն</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600">Դիմեցիք «ՏՏ համակարգիչ» պաշտոնին</span>
+                                <span class="text-xs text-gray-400">2 ժամ առաջ</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600">Թարմացրեցիք ձեր պրոֆիլը</span>
+                                <span class="text-xs text-gray-400">1 օր առաջ</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600">Ավարտեցիք նվիրվածության թեստը</span>
+                                <span class="text-xs text-gray-400">3 օր առաջ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function TestsView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-3xl">🧠</span>
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-900">Թեստավորման կենտրոն</h2>
+                                <p class="text-gray-600">Բարելավեք ձեր գնահատականները և ստացեք ավելի լավ առաջարկներ</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-purple-600">${user.testResults.completed}/${user.testResults.total}</div>
+                            <div class="text-sm text-gray-600">Ավարտված թեստեր</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-purple-900 mb-2">Ինչու են կարևոր թեստերը?</h3>
+                        <ul class="text-purple-800 text-sm space-y-1">
+                            <li>• Ավելի ճշգրիտ համապատասխանություն պաշտոնների հետ</li>
+                            <li>• Բարձր գնահատական HR համակարգում</li>
+                            <li>• Կարիերային զարգացման ռեկոմենդացիաներ</li>
+                            <li>• Ղեկավարների վստահությունն ավելացնելը</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="grid gap-6">
+                        ${tests.map(test => `
+                            <div class="bg-white p-6 rounded-lg shadow-md border">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="p-3 rounded-full ${test.completed ? 'bg-green-100' : 'bg-gray-100'}">
+                                            <span class="text-xl">${test.completed ? '✅' : '⏰'}</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-gray-900">${test.name}</h3>
+                                            <p class="text-gray-600 text-sm">${test.description}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    ${test.completed ? `
+                                        <div class="px-3 py-1 rounded-full text-sm font-bold ${getTestColor(test.score)}">
+                                            ${test.score}%
+                                        </div>
+                                    ` : ''}
+                                </div>
+
+                                <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                                    <div class="flex items-center space-x-4">
+                                        <span class="flex items-center">
+                                            ⏱️ ${test.duration}
+                                        </span>
+                                        <span class="flex items-center">
+                                            📝 ${test.questions} հարց
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="flex space-x-2">
+                                    ${test.completed ? `
+                                        <button class="flex-1 bg-green-100 text-green-800 px-4 py-2 rounded-md text-sm font-medium cursor-not-allowed">
+                                            Ավարտված
+                                        </button>
+                                        <button class="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50">
+                                            🔄
+                                        </button>
+                                    ` : `
+                                        <button onclick="alert('Թեստը սկսվում է...')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center">
+                                            ▶️ Սկսել թեստը
+                                        </button>
+                                    `}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function PositionCard(position, showMatch = false, showTestMatch = false) {
+            return `
+                <div class="bg-white p-6 rounded-lg shadow-md border hover:shadow-lg transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">${position.title}</h3>
+                            <p class="text-gray-600 text-sm mb-3">${position.description}</p>
+                        </div>
+                        <div class="text-right space-y-1">
+                            ${showMatch ? `
+                                <div class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">
+                                    ${position.matchScore}% պրոֆիլ
+                                </div>
+                            ` : ''}
+                            ${showTestMatch ? `
+                                <div class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded-full">
+                                    ${position.testMatch}% թեստեր
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 mb-4">
+                        <div class="flex items-center text-sm text-gray-600">
+                            📅 ${position.duration}
+                        </div>
+                        <div class="flex items-center text-sm text-gray-600">
+                            📍 ${position.location}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-sm font-medium text-gray-700 mb-2">Պահանջվող հմտություններ:</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${position.requirements.map(req => `
+                                <span class="text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                                    user.skills.includes(req) 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-gray-100 text-gray-800'
+                                }">
+                                    ${req}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    ${position.requiredTests ? `
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-700 mb-2">Պահանջվող թեստեր:</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${position.requiredTests.map(testType => {
+                                    const testScore = user.testResults[testType];
+                                    return `
+                                        <span class="text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                                            testScore >= 80 
+                                                ? 'bg-green-100 text-green-800' 
+                                                : testScore >= 70
+                                                ? 'bg-yellow-100 text-yellow-800'
+                                                : 'bg-red-100 text-red-800'
+                                        }">
+                                            ${testType} (${testScore}%)
+                                        </span>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="flex space-x-2">
+                        <button 
+                            onclick="handleApply(${position.id})"
+                            ${applications.includes(position.id) ? 'disabled' : ''}
+                            class="flex-1 px-4 py-2 text-sm font-medium rounded-md ${
+                                applications.includes(position.id)
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }"
+                        >
+                            ${applications.includes(position.id) ? 'Դիմել եք' : 'Դիմել'}
+                        </button>
+                        <button class="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50">
+                            💬
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function PositionsView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-900">Թափուր պաշտոններ</h2>
+                        <div class="flex space-x-2">
+                            <button class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                🔍 Ֆիլտր
+                            </button>
+                            <button class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                🔎 Որոնում
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid gap-6">
+                        ${positions.filter(p => p.type === 'position').map(position => PositionCard(position, false, true)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function ProjectsView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-900">Նախագծեր</h2>
+                        <div class="flex space-x-2">
+                            <button class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                🔍 Ֆիլտր
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid gap-6">
+                        ${positions.filter(p => p.type === 'project').map(position => PositionCard(position, false, true)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function RecommendationsView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <span class="text-2xl">⭐</span>
+                        <h2 class="text-2xl font-bold text-gray-900">Իմ առաջարկները</h2>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 p-4 rounded mb-6">
+                        <p class="text-blue-800 text-sm mb-2">
+                            <strong>Խելացի համապատասխանություն:</strong> Համակարգը վերլուծել է ձեր պրոֆիլը և թեստերի արդյունքները՝ գտնելով ${getMatchedPositions().length} համապատասխան հնարավորություն
+                        </p>
+                    </div>
+                    
+                    <div class="grid gap-6">
+                        ${getMatchedPositions().map(position => PositionCard(position, true, true)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function AnalyticsView() {
+            return `
+                <div class="space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Վերլուծություններ</h2>
+                    
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Ընդհանուր անդամներ</p>
+                                    <p class="text-3xl font-bold text-gray-900">2,847</p>
+                                </div>
+                                <span class="text-3xl">👥</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Ակտիվ նախագծեր</p>
+                                    <p class="text-3xl font-bold text-gray-900">23</p>
+                                </div>
+                                <span class="text-3xl">📈</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Կատարված համադրումներ</p>
+                                    <p class="text-3xl font-bold text-gray-900">156</p>
+                                </div>
+                                <span class="text-3xl">⭐</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Թեստերի վիճակագրություն</h3>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="space-y-3">
+                                <h4 class="font-medium text-gray-700">Ավարտման տոկոս</h4>
+                                ${['Տեխնիկական', 'Ղեկավարական', 'Հաղորդակցական', 'Նվիրվածություն'].map((testType, idx) => {
+                                    const percentage = Math.floor(Math.random() * 40 + 60);
+                                    return `
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-medium text-gray-700">${testType}</span>
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-24 bg-gray-200 rounded-full h-2">
+                                                    <div class="bg-purple-600 h-2 rounded-full" style="width: ${percentage}%"></div>
+                                                </div>
+                                                <span class="text-sm text-gray-600">${percentage}%</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <h4 class="font-medium text-gray-700">Միջին գնահատականներ</h4>
+                                ${[
+                                    { name: 'Տեխնիկական', score: 78 },
+                                    { name: 'Ղեկավարական', score: 82 },
+                                    { name: 'Հաղորդակցական', score: 85 },
+                                    { name: 'Նվիրվածություն', score: 91 }
+                                ].map((test) => `
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-medium text-gray-700">${test.name}</span>
+                                        <span class="px-2 py-1 rounded text-sm font-bold ${getTestColor(test.score)}">
+                                            ${test.score}%
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Մարզային բաշխվածություն</h3>
+                        <div class="space-y-3">
+                            ${['Երևան', 'Գյումրի', 'Վանաձոր', 'Կապան', 'Գորիս'].map((city) => {
+                                const percentage = Math.floor(Math.random() * 80 + 20);
+                                const count = Math.floor(Math.random() * 500 + 100);
+                                return `
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-medium text-gray-700">${city}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-32 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${percentage}%"></div>
+                                            </div>
+                                            <span class="text-sm text-gray-600">${count}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Կադրային քարտեզ</h3>
+                        <p class="text-gray-600 text-sm mb-4">Թեստերի հիման վրա ձևավորված մասնագիտական բաշխվածություն</p>
+                        <div class="grid md:grid-cols-4 gap-4">
+                            <div class="text-center p-4 bg-green-50 rounded-lg">
+                                <div class="text-2xl font-bold text-green-600">247</div>
+                                <div class="text-sm text-green-800">Տեխնիկական մասնագետներ</div>
+                            </div>
+                            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-600">189</div>
+                                <div class="text-sm text-blue-800">Ղեկավարական պոտենցիալ</div>
+                            </div>
+                            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                                <div class="text-2xl font-bold text-purple-600">156</div>
+                                <div class="text-sm text-purple-800">Հաղորդակցական</div>
+                            </div>
+                            <div class="text-center p-4 bg-orange-50 rounded-lg">
+                                <div class="text-2xl font-bold text-orange-600">89</div>
+                                <div class="text-sm text-orange-800">Կազմակերպիչներ</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function Profile() {
+            return `
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="flex items-center space-x-4 mb-6">
+                            <div class="bg-blue-500 p-3 rounded-full">
+                                <span class="text-2xl text-white">👤</span>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-900">${user.name}</h2>
+                                <p class="text-gray-600">${user.profession}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Հմտություններ</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${user.skills.map(skill => `
+                                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                                ${skill}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Կուսակցական փորձ</label>
+                                    <p class="text-gray-900">${user.partyYears} տարի անդամակցություն</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Հասանելիություն</label>
+                                    <p class="text-gray-900">${user.availability}</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Նախընտրելի տարածքներ</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${user.regions.map(region => `
+                                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center">
+                                                📍 ${region}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                            <span class="mr-2">🏆</span>
+                            Թեստերի արդյունքներ
+                        </h3>
+                        
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium text-gray-700">Տեխնիկական հմտություններ</span>
+                                    <span class="px-2 py-1 rounded text-sm font-bold ${getTestColor(user.testResults.technical)}">
+                                        ${user.testResults.technical}%
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium text-gray-700">Ղեկավարական հմտություններ</span>
+                                    <span class="px-2 py-1 rounded text-sm font-bold ${getTestColor(user.testResults.leadership)}">
+                                        ${user.testResults.leadership}%
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium text-gray-700">Հաղորդակցական</span>
+                                    <span class="px-2 py-1 rounded text-sm font-bold ${getTestColor(user.testResults.communication)}">
+                                        ${user.testResults.communication}%
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium text-gray-700">Նվիրվածություն</span>
+                                    <span class="px-2 py-1 rounded text-sm font-bold ${getTestColor(user.testResults.loyalty)}">
+                                        ${user.testResults.loyalty}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg">🎯</span>
+                                <span class="text-sm font-medium text-blue-800">Անձնականության տիպ: ${user.testResults.personality}</span>
+                            </div>
+                            <p class="text-xs text-blue-700 mt-1">Բնածին ղեկավար, ռազմավարական մտածող</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Navigation
+        function Navigation() {
+            const navItems = [
+                { key: 'dashboard', label: 'Գլխավոր' },
+                { key: 'tests', label: 'Թեստեր' },
+                { key: 'positions', label: 'Պաշտոններ' },
+                { key: 'projects', label: 'Նախագծեր' },
+                { key: 'recommendations', label: 'Առաջարկներ' },
+                { key: 'analytics', label: 'Վերլուծություն' },
+                { key: 'profile', label: 'Պրոֆիլ' }
+            ];
+
+            return `
+                <nav class="bg-white shadow-sm border-b">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex justify-between items-center h-16">
+                            <div class="flex items-center space-x-2">
+                                <div class="bg-blue-600 p-2 rounded-lg">
+                                    <span class="text-white text-xl">👥</span>
+                                </div>
+                                <span class="text-xl font-bold text-gray-900">Կուսակցական Match-Making</span>
+                            </div>
+                            
+                            <div class="flex space-x-4">
+                                ${navItems.map(item => `
+                                    <button 
+                                        onclick="setView('${item.key}')"
+                                        class="px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                                            currentView === item.key 
+                                                ? 'bg-blue-100 text-blue-700' 
+                                                : 'text-gray-600 hover:text-gray-900'
+                                        }"
+                                    >
+                                        ${item.label}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+            `;
+        }
+
+        // Main render function
+        function render() {
+            const app = document.getElementById('app');
+            
+            let content = '';
+            switch (currentView) {
+                case 'tests': content = TestsView(); break;
+                case 'positions': content = PositionsView(); break;
+                case 'projects': content = ProjectsView(); break;
+                case 'recommendations': content = RecommendationsView(); break;
+                case 'analytics': content = AnalyticsView(); break;
+                case 'profile': content = Profile(); break;
+                default: content = Dashboard();
+            }
+
+            app.innerHTML = `
+                <div class="min-h-screen bg-gray-50">
+                    ${Navigation()}
+                    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                        ${content}
+                    </main>
+                </div>
+            `;
+        }
+
+        // Initial render when page loads
+        window.addEventListener('load', function() {
+            render();
+        });
+    </script>
+</body>
+</html>
